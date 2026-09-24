@@ -2,7 +2,8 @@ export type AgentName = "grok" | "codex" | "claude";
 export type Roll = "a-roll" | "b-roll";
 export type Verdict = "keep" | "reject" | "unjudged";
 
-export const ISSUES = [
+/** Issues the judge agent may report. */
+export const JUDGE_ISSUES = [
   "out_of_focus",
   "exposure",
   "shaky",
@@ -12,6 +13,11 @@ export const ISSUES = [
   "dead_air",
   "junk",
   "weak_broll",
+] as const;
+
+/** All issues, including those assigned by rules and grouping. */
+export const ISSUES = [
+  ...JUDGE_ISSUES,
   "too_short",
   "black",
   "frozen",
