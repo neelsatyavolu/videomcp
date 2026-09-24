@@ -1,9 +1,10 @@
-import { access, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import path from "node:path";
 import { analyzeVideo } from "../media/analyze.js";
 import { probeVideo } from "../media/probe.js";
 import { hashKey } from "../utils/paths.js";
 import { dhashFile } from "./dhash.js";
+import { exists, readJson, writeJson } from "./fsutil.js";
 import { measureClip } from "./metrics.js";
 import { detectRoll } from "./rules.js";
 import type { ClipAnalysis, Judgement, Metrics, ScannedFile } from "./types.js";
@@ -16,24 +17,8 @@ async function fileKey(file: ScannedFile): Promise<string> {
   return hashKey(`${file.path}|${st.size}|${st.mtimeMs}|v${CACHE_VERSION}`);
 }
 
-async function readJson<T>(file: string): Promise<T | null> {
-  try {
-    return JSON.parse(await readFile(file, "utf8")) as T;
-  } catch {
-    return null;
-  }
-}
-
-async function writeJson(file: string, data: unknown): Promise<void> {
-  await mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  await writeFile(tmp, JSON.stringify(data));
-  await rename(tmp, file);
-}
-
 async function allExist(paths: readonly string[]): Promise<boolean> {
-  const results = await Promise.all(paths.map((p) => access(p).then(() => true, () => false)));
-  return results.every(Boolean);
+  return (await Promise.all(paths.map(exists))).every(Boolean);
 }
 
 const NO_VIDEO_METRICS: Metrics = {
