@@ -63,6 +63,11 @@ export async function runCli(argv: string[]): Promise<void> {
         console.log(SERVER_VERSION);
         break;
       }
+      case "sort": {
+        const { cmdSort } = await import("./sort/index.js");
+        process.exitCode = await cmdSort(args.slice(1));
+        break;
+      }
       case "serve": {
         const { default: start } = await import("./serve.js");
         await start();

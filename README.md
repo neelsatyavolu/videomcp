@@ -56,6 +56,7 @@ video-mcp help
 | `video-mcp uninstall` | Remove from configs |
 | `video-mcp status` | Show where it's installed |
 | `video-mcp doctor` | ffmpeg / whisper / tesseract + client status |
+| `video-mcp sort <folder>` | Sort a shoot folder by topic, A/B roll and quality (see below) |
 | `video-mcp serve` | Run MCP on stdio (also the default with no args) |
 
 ### Needed system tools
@@ -75,6 +76,33 @@ Configs are updated in place; a `.bak` backup is written first.
 | Claude Code | `~/.claude.json` |
 | Codex | `~/.codex/config.toml` |
 | Grok | `~/.grok/config.toml` |
+
+## Sorting a shoot folder
+
+```bash
+video-mcp sort ~/Footage/shoot-0924 --dry-run   # see the plan, move nothing
+video-mcp sort ~/Footage/shoot-0924             # asks before moving
+video-mcp sort --undo ~/Footage/shoot-0924      # put everything back
+```
+
+Every clip is analysed locally (transcript, keyframes, OCR, and ffmpeg checks for focus,
+exposure, shake, audio clipping, silence, black and frozen frames). A signed-in agent CLI
+(`--agent grok|codex|claude`; default is the first one installed, in that order) looks at each
+clip and says keep or reject, then groups the whole shoot into topics and picks the best of
+repeated takes. Files are moved in place (never renamed, never overwritten):
+
+```
+shoot/
+  <Topic>/a-roll/ · <Topic>/b-roll/
+  _rejects/<Topic>/{a-roll,b-roll}/   bad clips, alternate takes, near-duplicates
+  footage-report.md                   every clip with its verdict and reasons
+  .footage-sort/                      analysis cache + undo manifest
+```
+
+A-roll is a clip with speech over at least 40% of its length; a folder named `a-roll` or
+`b-roll` overrides that. Very short, mostly black or frozen clips are rejected without asking
+the agent. Re-running only sorts clips added since. Options: `--model`, `--yes`,
+`--concurrency N` (default 3), `--no-cache`.
 
 ## Tools
 

@@ -2,7 +2,7 @@
 /**
  * Dual entrypoint:
  * - No args / unknown → MCP stdio server (what agents launch)
- * - install|uninstall|status|doctor|help|serve|version → CLI
+ * - install|uninstall|status|doctor|sort|help|serve|version → CLI
  */
 import { runCli } from "./cli.js";
 import start from "./serve.js";
@@ -23,6 +23,7 @@ const CLI_COMMANDS = new Set([
   "--version",
   "-v",
   "serve",
+  "sort",
 ]);
 
 async function main(): Promise<void> {

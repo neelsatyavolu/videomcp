@@ -158,11 +158,21 @@ Usage:
   video-mcp uninstall [--client <name>]         Remove from clients
   video-mcp status [--client <name>]            Show install status
   video-mcp doctor                              Check deps + client installs
+  video-mcp sort <folder> [options]             Sort a shoot folder by topic, A/B roll and quality
+  video-mcp sort --undo <folder>                Put files back where the last sort found them
   video-mcp serve                               Run MCP server (stdio)
   video-mcp help                                Show this help
 
 Clients (--client):
   all (default) | desktop | code | codex | grok
+
+Sort options:
+  --agent grok|codex|claude   Signed-in agent CLI that judges clips (default: first installed, in that order)
+  --model <id>                Model for that agent
+  --dry-run                   Show the plan and report; move nothing
+  --yes                       Move without asking (required when not in a terminal)
+  --concurrency N             Clips analysed/judged at once (default 3)
+  --no-cache                  Re-analyse and re-judge every clip
 
 Quick start:
   video-mcp setup

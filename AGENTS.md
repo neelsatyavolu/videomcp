@@ -18,6 +18,11 @@ npm run smoke -- /path/to/video.mp4
 
 - no args → MCP stdio
 - `install | uninstall | status | doctor | help`
+- `sort <folder>` — sort footage by topic / A-B roll / quality via a signed-in agent CLI (`src/sort/`)
+
+## Tests
+
+`npm test` (vitest, `test/`), `npm run typecheck` (src + tests)
 
 ## Tools
 
