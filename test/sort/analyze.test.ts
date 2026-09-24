@@ -72,5 +72,6 @@ describe("judgement cache", () => {
     await saveJudgement(cacheDir, file, "claude", j);
     expect(await loadJudgement(cacheDir, file, "claude")).toEqual(j);
     expect(await loadJudgement(cacheDir, file, "grok")).toBeNull();
+    expect(await loadJudgement(cacheDir, file, "claude:haiku")).toBeNull();
   });
 });

@@ -6,7 +6,7 @@ import { hashKey } from "../utils/paths.js";
 import { dhashFile } from "./dhash.js";
 import { measureClip } from "./metrics.js";
 import { detectRoll } from "./rules.js";
-import type { AgentName, ClipAnalysis, Judgement, Metrics, ScannedFile } from "./types.js";
+import type { ClipAnalysis, Judgement, Metrics, ScannedFile } from "./types.js";
 
 const CACHE_VERSION = 1;
 const MAX_FRAMES = 6;
@@ -101,14 +101,15 @@ export async function analyzeClip(
   return { ...fresh, id, file };
 }
 
-async function judgementFile(cacheDir: string, file: ScannedFile, agent: AgentName): Promise<string> {
-  return path.join(cacheDir, `${await fileKey(file)}.judge-${agent}.json`);
+/** agentKey identifies agent + model, e.g. "claude" or "claude:haiku". */
+async function judgementFile(cacheDir: string, file: ScannedFile, agentKey: string): Promise<string> {
+  return path.join(cacheDir, `${await fileKey(file)}.judge-${hashKey(agentKey)}.json`);
 }
 
-export async function loadJudgement(cacheDir: string, file: ScannedFile, agent: AgentName): Promise<Judgement | null> {
-  return readJson<Judgement>(await judgementFile(cacheDir, file, agent));
+export async function loadJudgement(cacheDir: string, file: ScannedFile, agentKey: string): Promise<Judgement | null> {
+  return readJson<Judgement>(await judgementFile(cacheDir, file, agentKey));
 }
 
-export async function saveJudgement(cacheDir: string, file: ScannedFile, agent: AgentName, j: Judgement): Promise<void> {
-  await writeJson(await judgementFile(cacheDir, file, agent), j);
+export async function saveJudgement(cacheDir: string, file: ScannedFile, agentKey: string, j: Judgement): Promise<void> {
+  await writeJson(await judgementFile(cacheDir, file, agentKey), j);
 }
