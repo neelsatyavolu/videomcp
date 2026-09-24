@@ -1,0 +1,45 @@
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '/private/tmp/claude-503/-Users-neel-Documents-GitHub/bf8e1e64-2697-428c-8eee-07c867c3a0df/scratchpad/spike/mix.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf63.1.102
+  Duration: 00:00:04.00, start: 0.000000, bitrate: 443 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 640x360 [SAR 1:1 DAR 16:9], 395 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
+    Metadata:
+      handler_name    : VideoHandler
+      encoder         : Lavc63.1.102 libx264
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, mono, fltp, 35 kb/s (default)
+    Metadata:
+      handler_name    : SoundHandler
+[Parsed_volumedetect_0 @ 0x7c27031740] n_samples: 0
+Stream mapping:
+  Stream #0:0 -> #0:0 (h264 (native) -> wrapped_avframe (native))
+  Stream #0:1 -> #0:1 (aac (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, null, to 'pipe:':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf63.1.102
+  Stream #0:0(und): Video: wrapped_avframe, yuv420p(progressive), 640x360 [SAR 1:1 DAR 16:9], q=2-31, 200 kb/s, 2 fps, 2 tbn (default)
+    Metadata:
+      encoder         : Lavc63.1.102 wrapped_avframe
+      handler_name    : VideoHandler
+  Stream #0:1(und): Audio: pcm_s16le, 48000 Hz, mono, s16, 768 kb/s (default)
+    Metadata:
+      encoder         : Lavc63.1.102 pcm_s16le
+      handler_name    : SoundHandler
+[Parsed_silencedetect_1 @ 0x7c27031f80] silence_start: 2
+[Parsed_volumedetect_0 @ 0x7c27031ec0] n_samples: 192000
+[Parsed_volumedetect_0 @ 0x7c27031ec0] mean_volume: -24.1 dB
+[Parsed_volumedetect_0 @ 0x7c27031ec0] max_volume: -16.1 dB
+[Parsed_volumedetect_0 @ 0x7c27031ec0] histogram_16db: 31
+[Parsed_volumedetect_0 @ 0x7c27031ec0] histogram_17db: 2569
+[Parsed_silencedetect_1 @ 0x7c27031f80] silence_end: 4 | silence_duration: 2
+[Parsed_freezedetect_6 @ 0x7c27033300] lavfi.freezedetect.freeze_start: 2
+[Parsed_blackdetect_5 @ 0x7c27033240] black_start:2 black_end:3.5 black_duration:1.5
+[Parsed_blurdetect_3 @ 0x7c270330c0] blur mean: nan
+[out#0/null @ 0x7c27030300] video:3KiB audio:375KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown
+frame=    8 fps=0.0 q=-0.0 Lsize=N/A time=00:00:04.00 bitrate=N/A speed= 120x elapsed=0:00:00.03    
