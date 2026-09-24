@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "video": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/TO/videomcp/dist/index.js"]
+    }
+  }
+}

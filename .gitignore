@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.cache/
+*.log
+.DS_Store
+.env
+.env.*
+tmp/
+.videomcp/
+coverage/
+*.tsbuildinfo
+.agmux/
+.grok/

@@ -1,0 +1,47 @@
+{
+  "name": "video-mcp-server",
+  "version": "1.2.0",
+  "description": "Local-first video understanding MCP for Claude Desktop, Claude Code, Codex, and Grok — install CLI + server",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "video-mcp": "dist/index.js",
+    "video-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsx scripts/smoke.mts",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "video",
+    "ffmpeg",
+    "whisper",
+    "claude",
+    "codex",
+    "agent"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
