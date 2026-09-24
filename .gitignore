@@ -11,3 +11,4 @@ coverage/
 *.tsbuildinfo
 .agmux/
 .grok/
+.superpowers/
