@@ -2,7 +2,7 @@ import os from "node:os";
 import path from "node:path";
 
 export const SERVER_NAME = "video-mcp-server";
-export const SERVER_VERSION = "1.2.0";
+export const SERVER_VERSION = "1.3.0";
 
 /** Soft cap on markdown/JSON text returned to agents. */
 export const CHARACTER_LIMIT = 80_000;

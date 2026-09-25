@@ -1,7 +1,7 @@
 {
   "name": "video-mcp-server",
-  "version": "1.2.0",
-  "description": "Local-first video understanding MCP for Claude Desktop, Claude Code, Codex, and Grok — install CLI + server",
+  "version": "1.3.0",
+  "description": "Local-first video understanding for AI agents, plus `video-mcp sort`: sort a shoot folder by topic, A/B roll and quality using the Claude, Codex or Grok CLI you are signed in to",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -33,7 +33,12 @@
     "whisper",
     "claude",
     "codex",
-    "agent"
+    "agent",
+    "footage",
+    "a-roll",
+    "b-roll",
+    "video-editing",
+    "grok"
   ],
   "license": "MIT",
   "dependencies": {
@@ -45,5 +50,14 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^3.2.7"
-  }
+  },
+  "homepage": "https://videomcp.n3el.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neelsatyavolu/videomcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/neelsatyavolu/videomcp/issues"
+  },
+  "author": "Neel Satyavolu"
 }

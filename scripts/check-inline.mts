@@ -1,9 +1,8 @@
 import { analyzeVideo } from "../src/media/analyze.js";
 import { readFrameBase64, readInlineFrameBase64 } from "../src/media/frames.js";
 
-const source =
-  process.argv[2] ??
-  "/Users/neel/Downloads/InFocus/BTS Airport/B-roll/20260114_A741386.MP4";
+const source = process.argv[2];
+if (!source) throw new Error("usage: tsx scripts/check-inline.mts <video>");
 
 const r = await analyzeVideo(source, {
   detail: "standard",

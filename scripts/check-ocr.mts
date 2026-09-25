@@ -24,9 +24,8 @@ await execOk(ffmpeg, [
 
 console.log("synthetic OCR:", JSON.stringify(await ocrImage(out)));
 
-const r = await analyzeVideo(
-  "/Users/neel/Downloads/InFocus/BTS Airport/B-roll/20260114_A741386.MP4",
-  { detail: "standard", forceRefresh: true, skipTranscript: true },
-);
-console.log("airport ocrHitCount", r.ocrHitCount);
+const video = process.argv[2];
+if (!video) throw new Error("usage: tsx scripts/check-ocr.mts <video>");
+const r = await analyzeVideo(video, { detail: "standard", forceRefresh: true, skipTranscript: true });
+console.log("ocrHitCount", r.ocrHitCount);
 console.log(r.summary);
