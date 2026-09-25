@@ -3,7 +3,7 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { checkDeps, requireFfmpeg } from "../media/deps.js";
 import { AGENT_ORDER, ADAPTERS, createAsk, isAgentName, selectAgent } from "./agents/index.js";
-import { runProcess } from "./agents/run.js";
+import { killRunning, runProcess } from "./agents/run.js";
 import { analyzeClip, loadJudgement, saveJudgement } from "./analyze.js";
 import { applyPlan, undoLastRun } from "./apply.js";
 import { runSort } from "./pipeline.js";
@@ -111,6 +111,13 @@ export async function cmdSort(argv: readonly string[]): Promise<number> {
     return 1;
   }
   const agent = await selectAgent(runProcess, args.agent);
+  const interrupt = (signal: NodeJS.Signals) => {
+    killRunning();
+    console.error(`\nStopped (${signal}). Files already moved are in the manifest: video-mcp sort --undo`);
+    process.exit(130);
+  };
+  process.once("SIGINT", interrupt);
+  process.once("SIGTERM", interrupt);
   const agentKey = args.model ? `${agent}:${args.model}` : agent;
   const cacheDir = path.join(args.dir, WORK_DIR_NAME, "cache");
   console.error(`Using ${agentKey} to judge clips.`);

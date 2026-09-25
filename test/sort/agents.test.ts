@@ -3,7 +3,7 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { ADAPTERS, createAsk, selectAgent } from "../../src/sort/agents/index.js";
-import { runProcess, type RunResult, type Runner } from "../../src/sort/agents/run.js";
+import { killRunning, runProcess, type RunResult, type Runner } from "../../src/sort/agents/run.js";
 import { tempDir } from "./helpers.js";
 
 const fixture = (name: string) => readFileSync(path.join(__dirname, "fixtures", name), "utf8");
@@ -139,5 +139,16 @@ describe("runProcess", () => {
     expect(res).toMatchObject({ stdout: "hi\n", code: 0, timedOut: false });
     const slow = await runProcess("sh", ["-c", "sleep 5"], { cwd: "/tmp", timeoutMs: 200 });
     expect(slow.timedOut).toBe(true);
+  });
+
+  it("kills every running agent process group on demand (used on Ctrl-C)", async () => {
+    const started = Date.now();
+    const pending = runProcess("sh", ["-c", "sleep 30 & sleep 30; wait"], { cwd: "/tmp", timeoutMs: 60_000 });
+    await new Promise((r) => setTimeout(r, 200));
+    expect(killRunning()).toBe(1);
+    const res = await pending;
+    expect(res.code).not.toBe(0);
+    expect(Date.now() - started).toBeLessThan(5_000);
+    expect(killRunning()).toBe(0);
   });
 });
