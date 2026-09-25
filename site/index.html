@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>video-mcp — sort a shoot folder in one command</title>
+  <meta name="description" content="video-mcp splits A-roll from B-roll, groups clips by topic and pulls bad takes into _rejects, using the Claude, Codex or Grok CLI you're already signed in to. Free and open source for macOS.">
+  <meta name="theme-color" content="#0e0e0d" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f2ec" media="(prefers-color-scheme: light)">
+  <link rel="canonical" href="https://videomcp.n3el.dev/">
+  <meta property="og:title" content="video-mcp — sort a shoot folder in one command">
+  <meta property="og:description" content="A-roll vs B-roll, topics, and the bad takes pulled out — judged by the AI CLI you already use. Every move can be undone.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://videomcp.n3el.dev/">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/app.js"></script>
+  <script defer src="https://analytics.n3el.dev/p.js"></script>
+</head>
+<body>
+  <header class="bar wrap">
+    <a class="mark" href="/" aria-label="video-mcp home"><span class="rec" aria-hidden="true"></span>video-mcp</a>
+    <nav>
+      <span class="tc">v1.3.0</span>
+      <a href="https://github.com/neelsatyavolu/videomcp">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero wrap">
+      <div class="pitch">
+        <h1>Sort the shoot.<br><em>Keep the good takes.</em></h1>
+        <p class="lede">Point it at a folder of raw clips. It splits A-roll from B-roll, groups everything by topic, and pulls the flubbed takes, lens-cap clips and near-duplicates into <code>_rejects</code>, judged by the Claude, Codex or Grok CLI you're already signed in to.</p>
+
+        <div class="install">
+          <div class="cmd">
+            <code>curl -fsSL https://raw.githubusercontent.com/neelsatyavolu/videomcp/main/install.sh | bash</code>
+            <button type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/neelsatyavolu/videomcp/main/install.sh | bash" hidden>Copy</button>
+          </div>
+          <div class="or">
+            <a class="dl" href="https://github.com/neelsatyavolu/videomcp/releases/latest/download/Install-video-mcp.zip">Download for Mac</a>
+            <p>Unzip, then double-click <b>Install video-mcp.command</b>. If macOS can't verify the developer, go to System Settings → Privacy &amp; Security and click <b>Open Anyway</b>.</p>
+          </div>
+        </div>
+      </div>
+
+      <figure class="bin" aria-label="Example: eight raw clips being sorted">
+        <figcaption><span>raw/</span><span class="tc">8 clips</span></figcaption>
+        <ol>
+          <li><span class="name">intro_take2.mp4</span><span class="tc">00:00:05:02</span><span class="to keep">Desk Lamp Setup/a-roll</span></li>
+          <li><span class="name">intro_take1.mp4</span><span class="tc">00:00:06:04</span><span class="to rej">_rejects · restarted line</span></li>
+          <li><span class="name">coffee_talk.mp4</span><span class="tc">00:00:05:25</span><span class="to keep">Coffee/a-roll</span></li>
+          <li><span class="name">grinder_closeup.mp4</span><span class="tc">00:00:06:00</span><span class="to keep">Coffee/b-roll</span></li>
+          <li><span class="name">grinder_closeup_2.mp4</span><span class="tc">00:00:06:00</span><span class="to rej">_rejects · near-duplicate</span></li>
+          <li><span class="name">lamp_unbox.mp4</span><span class="tc">00:00:12:10</span><span class="to keep">Desk Lamp Setup/b-roll</span></li>
+          <li><span class="name">IMG_0412.MOV</span><span class="tc">00:00:04:00</span><span class="to rej">_rejects · mostly black</span></li>
+          <li><span class="name">IMG_0413.MOV</span><span class="tc">00:00:00:15</span><span class="to rej">_rejects · too short</span></li>
+        </ol>
+      </figure>
+    </section>
+
+    <section class="how wrap" aria-labelledby="how">
+      <h2 id="how">How it works</h2>
+      <ol class="steps">
+        <li><span class="tc">01</span><h3>Look</h3><p>Every clip is checked on your Mac: speech-to-text, keyframes, on-screen text, and ffmpeg measurements for focus, exposure, shake, clipped audio, silence and black frames.</p></li>
+        <li><span class="tc">02</span><h3>Judge</h3><p>Your signed-in agent CLI sees the transcript, the measurements and a few keyframes, and says keep or reject. Then it names the topics and picks the best of repeated takes.</p></li>
+        <li><span class="tc">03</span><h3>File</h3><p>Clips move into <code>Topic/a-roll</code>, <code>Topic/b-roll</code> or <code>_rejects</code>, with a <code>footage-report.md</code> explaining each call. Files are never overwritten or deleted.</p></li>
+      </ol>
+    </section>
+
+    <section class="use wrap" aria-labelledby="use">
+      <h2 id="use">Use it</h2>
+      <pre><code><span class="c"># see the plan, move nothing</span>
+video-mcp sort ~/Footage/shoot --dry-run
+
+<span class="c"># sort (asks before moving)</span>
+video-mcp sort ~/Footage/shoot
+
+<span class="c"># put everything from the last run back</span>
+video-mcp sort --undo ~/Footage/shoot</code></pre>
+      <ul class="facts">
+        <li><b>A-roll</b> is a clip with speech over at least 40% of its length. Folders already named <code>a-roll</code> or <code>b-roll</code> win.</li>
+        <li><b>Rejects</b>: out of focus, bad exposure, shaky, clipped audio, restarts and stumbles, dead air, lens-cap clips, redundant B-roll.</li>
+        <li><b>Agents</b>: <code>--agent claude|codex|grok</code>; defaults to the first one installed. Runs read-only, with no API keys.</li>
+        <li><b>Re-runs</b> only sort clips added since. Analysis is cached in <code>.footage-sort/</code>.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <p>Also an MCP server: <code>video-mcp install</code> gives Claude, Codex and Grok tools to watch any video.</p>
+    <p class="meta">MIT licensed · <a href="https://github.com/neelsatyavolu/videomcp">Source</a> · <a href="https://n3el.dev">n3el.dev</a></p>
+  </footer>
+</body>
+</html>
