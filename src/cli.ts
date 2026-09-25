@@ -84,12 +84,10 @@ export async function runCli(argv: string[]): Promise<void> {
   }
 }
 
-// Direct execution
+// Direct execution (`node dist/cli.js …`). The installed `video-mcp` bin runs index.js,
+// which calls runCli itself, so matching the bin name here would run every command twice.
 const isDirect =
-  process.argv[1] &&
-  (process.argv[1].endsWith("/cli.js") ||
-    process.argv[1].endsWith("/cli.ts") ||
-    process.argv[1].endsWith("video-mcp"));
+  process.argv[1] && (process.argv[1].endsWith("/cli.js") || process.argv[1].endsWith("/cli.ts"));
 
 if (isDirect) {
   runCli(process.argv);
