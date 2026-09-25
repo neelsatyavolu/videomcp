@@ -84,6 +84,18 @@ describe("buildPlan", () => {
     expect(byId.get("c4")).toMatchObject({ verdict: "reject", reasons: ["near-duplicate of b1.mp4"] });
   });
 
+  it("keeps a rejected clip's own reason first when grouping also rejects it", () => {
+    const clips = [clip("c1", "blip.mp4"), clip("c2", "b.mp4")];
+    const plan = buildPlan(
+      root,
+      clips,
+      new Map([["c1", reject("too short (<1s)")], ["c2", keep()]]),
+      grouping([{ title: "T", clips: ["c1", "c2"] }], { duplicateRejects: [{ clip: "c1", duplicateOf: "c2" }] }),
+      () => false,
+    );
+    expect(plan[0]!.reasons).toEqual(["too short (<1s)", "issues: shaky", "near-duplicate of b.mp4"]);
+  });
+
   it("suffixes collisions between planned moves and with files already on disk", () => {
     const clips = [clip("c1", "day1/clip.mp4"), clip("c2", "day2/clip.mp4"), clip("c3", "day3/other.MOV")];
     const onDisk = new Set(["/shoot/T/b-roll/other.MOV"]);

@@ -80,7 +80,7 @@ export function buildPlan(
       topic,
       roll: c.roll,
       verdict,
-      reasons: forcedReason ? [forcedReason] : reasonsFor(j),
+      reasons: !forcedReason ? reasonsFor(j) : j.verdict === "reject" ? [...reasonsFor(j), forcedReason] : [forcedReason],
       summary: j.summary,
       durationSec: c.durationSec,
     });
