@@ -1,7 +1,7 @@
 import { stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
-import { requireFfmpeg } from "../media/deps.js";
+import { checkDeps, requireFfmpeg } from "../media/deps.js";
 import { AGENT_ORDER, ADAPTERS, createAsk, isAgentName, selectAgent } from "./agents/index.js";
 import { runProcess } from "./agents/run.js";
 import { analyzeClip, loadJudgement, saveJudgement } from "./analyze.js";
@@ -105,6 +105,11 @@ export async function cmdSort(argv: readonly string[]): Promise<number> {
   if (args.undo) return undo(args.dir);
 
   await requireFfmpeg();
+  const asr = (await checkDeps()).find((d) => d.name === "asr_ready");
+  if (!asr?.available) {
+    console.error("No speech-to-text backend is ready, so A-roll cannot be told from B-roll. Run: video-mcp setup");
+    return 1;
+  }
   const agent = await selectAgent(runProcess, args.agent);
   const agentKey = args.model ? `${agent}:${args.model}` : agent;
   const cacheDir = path.join(args.dir, WORK_DIR_NAME, "cache");

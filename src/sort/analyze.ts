@@ -7,7 +7,7 @@ import { dhashFile } from "./dhash.js";
 import { exists, readJson, writeJson } from "./fsutil.js";
 import { measureClip } from "./metrics.js";
 import { detectRoll } from "./rules.js";
-import type { ClipAnalysis, Judgement, Metrics, ScannedFile } from "./types.js";
+import type { ClipAnalysis, Judgement, Metrics, ScannedFile, Segment } from "./types.js";
 
 const CACHE_VERSION = 1;
 const MAX_FRAMES = 6;
@@ -33,6 +33,24 @@ const NO_VIDEO_METRICS: Metrics = {
   frozenShare: 0,
 };
 
+/**
+ * Speech segments for roll detection. A clip with audio but no transcript means speech-to-text
+ * failed (silent audio yields an empty transcript), so this throws rather than report "no speech"
+ * and misfile an interview as B-roll.
+ */
+export function transcriptSegments(
+  hasAudio: boolean,
+  transcript: { readonly segments: readonly Segment[] } | null,
+  warnings: readonly string[],
+): Segment[] {
+  if (!hasAudio) return [];
+  if (!transcript) {
+    const why = warnings.filter(Boolean).join("; ") || "no speech-to-text backend produced a result";
+    throw new Error(`speech transcription failed: ${why}. Run \`video-mcp setup\` or \`video-mcp doctor\`.`);
+  }
+  return transcript.segments.map((s) => ({ start: s.start, end: s.end, text: s.text }));
+}
+
 type CachedAnalysis = Omit<ClipAnalysis, "id" | "file">;
 
 async function compute(file: ScannedFile): Promise<CachedAnalysis> {
@@ -45,7 +63,7 @@ async function compute(file: ScannedFile): Promise<CachedAnalysis> {
     skipTranscript: !info.hasAudio,
     skipFrames: !info.hasVideo,
   });
-  const transcript = (result.transcript?.segments ?? []).map((s) => ({ start: s.start, end: s.end, text: s.text }));
+  const transcript = transcriptSegments(info.hasAudio, result.transcript, result.warnings);
   const framePaths = result.frames.map((f) => f.path);
   const middle = framePaths[Math.floor(framePaths.length / 2)];
   const [metrics, dhash] = await Promise.all([

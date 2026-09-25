@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { analyzeClip, loadJudgement, saveJudgement } from "../../src/sort/analyze.js";
+import { analyzeClip, loadJudgement, saveJudgement, transcriptSegments } from "../../src/sort/analyze.js";
 import type { Judgement } from "../../src/sort/types.js";
 import { tempDir } from "./helpers.js";
 
@@ -59,6 +59,20 @@ describe("analyzeClip", () => {
     const dir = await tempDir();
     const file = { path: await silentClip(dir), rel: "a-roll/clip.mp4", rollHint: "a-roll" as const };
     expect((await analyzeClip(file, "c01", path.join(dir, "cache"), false)).roll).toBe("a-roll");
+  });
+});
+
+describe("transcriptSegments", () => {
+  const seg = { start: 0, end: 1, text: "hi" };
+
+  it("returns segments, or none for clips without audio or with silent audio", () => {
+    expect(transcriptSegments(true, { segments: [seg] }, [])).toEqual([seg]);
+    expect(transcriptSegments(true, { segments: [] }, [])).toEqual([]);
+    expect(transcriptSegments(false, null, [])).toEqual([]);
+  });
+
+  it("fails when a clip has audio but transcription produced nothing, instead of calling it silent", () => {
+    expect(() => transcriptSegments(true, null, ["whisper.cpp not found"])).toThrow(/transcri.*whisper\.cpp not found/i);
   });
 });
 
