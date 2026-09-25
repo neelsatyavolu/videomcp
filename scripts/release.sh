@@ -24,7 +24,7 @@ cp "scripts/Install video-mcp.command" "$stage/"
 chmod +x "$stage/Install video-mcp.command"
 rm -f "$out/Install-video-mcp.zip"
 # ditto keeps the executable bit, which a plain download of a .command would lose.
-ditto -c -k --keepParent "$stage/Install video-mcp.command" "$out/Install-video-mcp.zip"
+(cd "$stage" && ditto -c -k --norsrc --noextattr "Install video-mcp.command" "$OLDPWD/$out/Install-video-mcp.zip")
 rm -r "$stage"
 
 ls -l "$out"
