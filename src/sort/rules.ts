@@ -4,7 +4,6 @@ const A_ROLL_SPEECH_SHARE = 0.4;
 const A_ROLL_MIN_WORDS = 8;
 const MIN_DURATION_SEC = 1;
 const MAX_BLACK_SHARE = 0.8;
-const MAX_FROZEN_SHARE = 0.9;
 
 const BLUR_SOFT = 8;
 const DARK_SHARE = 0.5;
@@ -12,6 +11,8 @@ const BLOWN_SHARE = 0.3;
 const SHAKE = 0.03;
 const CLIPPING_DB = -0.5;
 const SILENT_SHARE = 0.6;
+/** Locked-off shots look frozen to freezedetect, so this is only a hint for the agent. */
+const FROZEN_SHARE = 0.9;
 
 /** Seconds covered by at least one segment, within [0, durationSec]. */
 function speechSeconds(durationSec: number, segs: readonly Segment[]): number {
@@ -53,7 +54,6 @@ export function preJudge(a: Pick<ClipAnalysis, "durationSec" | "hasVideo" | "met
   if (!a.hasVideo) return reject("junk", "no video stream");
   if (a.durationSec < MIN_DURATION_SEC) return reject("too_short", "too short (<1s)");
   if (a.metrics.blackShare >= MAX_BLACK_SHARE) return reject("black", "mostly black");
-  if (a.metrics.frozenShare >= MAX_FROZEN_SHARE) return reject("frozen", "frozen frame");
   return null;
 }
 
@@ -66,6 +66,7 @@ export function metricFlags(m: Metrics, roll: Roll, hasAudio: boolean): string[]
   if (m.blownShare > BLOWN_SHARE) flags.push(`overexposed (${pct(m.blownShare)} of frames blown out)`);
   if (m.shake !== null && m.shake > SHAKE) flags.push(`possibly shaky (jitter ${m.shake.toFixed(3)})`);
   if (m.maxVolumeDb !== null && m.maxVolumeDb >= CLIPPING_DB) flags.push(`audio clipping (peak ${m.maxVolumeDb} dB)`);
+  if (m.frozenShare >= FROZEN_SHARE) flags.push(`picture barely changes (${pct(m.frozenShare)}): static or frozen`);
   if (roll === "a-roll" && !hasAudio) flags.push("no audio track on A-roll");
   if (roll === "a-roll" && hasAudio && m.silentShare > SILENT_SHARE) {
     flags.push(`mostly silent (${pct(m.silentShare)})`);

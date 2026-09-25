@@ -81,7 +81,9 @@ Per clip, cached by `(path, size, mtime)`:
 
 ### 3. Pre-judge rules (no agent call, verdict = reject)
 - duration < 1.0 s
-- black share ≥ 0.8 or frozen share ≥ 0.9
+- black share ≥ 0.8
+
+(Frozen share ≥ 0.9 is only a warning flag for the judge: locked-off shots read as frozen.)
 - no video stream
 
 ### 4. Judge (one agent call per remaining clip)

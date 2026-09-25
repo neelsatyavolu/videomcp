@@ -52,12 +52,17 @@ describe("preJudge", () => {
     [{ ...base, durationSec: 0.5 }, "too_short"],
     [{ ...base, hasVideo: false }, "junk"],
     [{ ...base, metrics: { ...clean, blackShare: 0.85 } }, "black"],
-    [{ ...base, metrics: { ...clean, frozenShare: 0.95 } }, "frozen"],
   ] as const)("rejects %#", (clip, issue) => {
     const j = preJudge(clip);
     expect(j?.verdict).toBe("reject");
     expect(j?.issues).toContain(issue);
     expect(j?.reason).toBeTruthy();
+  });
+});
+
+describe("preJudge on static shots", () => {
+  it("leaves a still picture to the agent (locked-off shots look frozen to ffmpeg)", () => {
+    expect(preJudge({ durationSec: 10, hasVideo: true, metrics: { ...clean, frozenShare: 1 } })).toBeNull();
   });
 });
 
@@ -75,9 +80,10 @@ describe("metricFlags", () => {
       shake: 0.05,
       maxVolumeDb: -0.1,
       silentShare: 0.7,
+      frozenShare: 0.95,
     };
     const flags = metricFlags(bad, "a-roll", true).join(" | ");
-    for (const f of ["soft focus", "underexposed", "overexposed", "shaky", "clipping", "mostly silent"]) {
+    for (const f of ["soft focus", "underexposed", "overexposed", "shaky", "clipping", "mostly silent", "static or frozen"]) {
       expect(flags).toContain(f);
     }
   });
