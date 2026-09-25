@@ -31,17 +31,18 @@ export async function selectAgent(run: Runner, preferred?: AgentName): Promise<A
   throw new AgentError("No agent CLI found. Install and sign in to one of: grok, codex, claude.");
 }
 
-export type Ask = (prompt: string, images: readonly string[], cwd: string) => Promise<string>;
+/** timeoutMs overrides the default for one call (e.g. the whole-shoot grouping call). */
+export type Ask = (prompt: string, images: readonly string[], cwd: string, timeoutMs?: number) => Promise<string>;
 
 /** One headless call per ask; the adapter's prepare step runs once and is shared. */
 export function createAsk(run: Runner, agent: AgentName, model?: string, timeoutMs = DEFAULT_AGENT_TIMEOUT_MS): Ask {
   const adapter = ADAPTERS[agent];
   let extra: Promise<string[]> | null = null;
-  return async (prompt, images, cwd) => {
+  return async (prompt, images, cwd, callTimeoutMs = timeoutMs) => {
     extra ??= adapter.prepare ? adapter.prepare(run, cwd) : Promise.resolve([]);
     const inv = await adapter.build({ prompt, images, cwd, ...(model ? { model } : {}) }, await extra);
-    const res = await run(inv.cmd, inv.args, { cwd, timeoutMs });
-    if (res.timedOut) throw new AgentError(`${agent} timed out after ${Math.round(timeoutMs / 1000)}s`);
+    const res = await run(inv.cmd, inv.args, { cwd, timeoutMs: callTimeoutMs });
+    if (res.timedOut) throw new AgentError(`${agent} timed out after ${Math.round(callTimeoutMs / 1000)}s`);
     if (res.code !== 0) {
       const detail = (res.stderr.trim() || res.stdout.trim()).slice(-500);
       throw new AgentError(`${agent} exited with code ${res.code}: ${detail}`);

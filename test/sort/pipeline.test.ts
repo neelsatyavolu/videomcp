@@ -115,6 +115,21 @@ describe("runSort", () => {
     await expect(runSort(root, opts, deps({ group: () => "no" }).d)).rejects.toThrow(/group/i);
   });
 
+  it("gives the grouping call a longer timeout than per-clip judging", async () => {
+    const root = await shoot();
+    const { d } = deps();
+    const timeouts: (number | undefined)[] = [];
+    const res = await runSort(root, opts, {
+      ...d,
+      ask: (prompt, images, cwd, timeoutMs) => {
+        if (prompt.includes("Group ALL clips")) timeouts.push(timeoutMs);
+        return d.ask(prompt, images, cwd, timeoutMs);
+      },
+    });
+    expect(res.plan.length).toBeGreaterThan(0);
+    expect(timeouts).toEqual([600_000]);
+  });
+
   it("uses cached judgements instead of asking", async () => {
     const root = await shoot();
     const { d, prompts } = deps();

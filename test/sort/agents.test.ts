@@ -125,6 +125,18 @@ describe("createAsk", () => {
     expect(calls.filter((c) => c.args[0] === "mcp")).toHaveLength(1);
   });
 
+  it("lets a single call use a longer timeout", async () => {
+    const seen: number[] = [];
+    const run: Runner = async (_cmd, _args, o) => {
+      seen.push(o.timeoutMs);
+      return ok(fixture("claude-success.json"));
+    };
+    const ask = createAsk(run, "claude", undefined, 1_000);
+    await ask("P", [], "/tmp");
+    await ask("P", [], "/tmp", 600_000);
+    expect(seen).toEqual([1_000, 600_000]);
+  });
+
   it("reports timeouts and non-zero exits", async () => {
     const timeout = fakeRunner(() => ({ stdout: "", stderr: "", code: null, timedOut: true })).run;
     await expect(createAsk(timeout, "claude", undefined, 5_000)("P", [], "/tmp")).rejects.toThrow(/timed out after 5s/);

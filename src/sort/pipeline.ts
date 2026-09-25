@@ -12,6 +12,8 @@ import type { ClipAnalysis, Grouping, Judgement, PlanItem, ScannedFile } from ".
 import { extractJson, parseGrouping, parseJudgement } from "./verdicts.js";
 
 const MAX_JUDGE_IMAGES = 4;
+/** One call reasons over the whole shoot, so it gets far longer than a per-clip judgement. */
+const GROUP_TIMEOUT_MS = 600_000;
 const RETRY_NUDGE = "\n\nYour previous reply could not be parsed. Reply with ONLY the JSON object, nothing else.";
 
 export interface SortOptions {
@@ -22,7 +24,7 @@ export interface SortOptions {
 
 export interface SortDeps {
   analyze(file: ScannedFile, id: string): Promise<ClipAnalysis>;
-  ask(prompt: string, images: readonly string[], cwd: string): Promise<string>;
+  ask(prompt: string, images: readonly string[], cwd: string, timeoutMs?: number): Promise<string>;
   readonly imageMode: Exclude<ImageMode, "none">;
   cachedJudgement(file: ScannedFile): Promise<Judgement | null>;
   saveJudgement(file: ScannedFile, j: Judgement): Promise<void>;
@@ -57,12 +59,19 @@ async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (item: T, 
 }
 
 /** Asks, parses, and asks once more with a nudge when the answer does not parse. */
-async function askParsed<T>(deps: SortDeps, prompt: string, images: readonly string[], cwd: string, parse: (raw: unknown) => T): Promise<T> {
+async function askParsed<T>(
+  deps: SortDeps,
+  prompt: string,
+  images: readonly string[],
+  cwd: string,
+  parse: (raw: unknown) => T,
+  timeoutMs?: number,
+): Promise<T> {
   try {
-    return parse(extractJson(await deps.ask(prompt, images, cwd)));
+    return parse(extractJson(await deps.ask(prompt, images, cwd, timeoutMs)));
   } catch (first) {
     if ((first as Error).name === "AgentError") throw first;
-    return parse(extractJson(await deps.ask(prompt + RETRY_NUDGE, images, cwd)));
+    return parse(extractJson(await deps.ask(prompt + RETRY_NUDGE, images, cwd, timeoutMs)));
   }
 }
 
@@ -95,7 +104,8 @@ async function group(deps: SortDeps, clips: readonly ClipAnalysis[], judgements:
   });
   const prompt = groupPrompt(items, nearDuplicatePairs(clips));
   try {
-    return await askParsed(deps, prompt, [], os.tmpdir(), (raw) => parseGrouping(raw, clips.map((c) => c.id)));
+    const ids = clips.map((c) => c.id);
+    return await askParsed(deps, prompt, [], os.tmpdir(), (raw) => parseGrouping(raw, ids), GROUP_TIMEOUT_MS);
   } catch (err) {
     throw new Error(`Could not group clips into topics: ${errorText(err)}`);
   }
