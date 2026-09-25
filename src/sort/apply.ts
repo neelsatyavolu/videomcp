@@ -13,9 +13,17 @@ export async function readManifest(root: string): Promise<Manifest> {
   return m && Array.isArray(m.runs) ? m : { runs: [] };
 }
 
-/** Every folder any recorded run created (topic folders a re-scan should skip). */
+/** Every folder any recorded run created, relative to the root. */
 export function createdDirsAll(m: Manifest): string[] {
   return m.runs.flatMap((r) => r.createdDirs);
+}
+
+/** Absolute folders and files earlier runs created or placed — a re-scan skips these. */
+export function sortedPaths(root: string, m: Manifest): { dirs: string[]; files: string[] } {
+  return {
+    dirs: createdDirsAll(m).map((d) => path.join(root, d)),
+    files: m.runs.flatMap((r) => r.moves.filter((mv) => !mv.pending).map((mv) => path.join(root, mv.to))),
+  };
 }
 
 /** mkdir -p that reports which directories it actually created, outermost first. */
@@ -54,8 +62,8 @@ export interface ApplyResult {
 }
 
 /**
- * Moves every plan item, recording the run in the manifest before the first move and after
- * each one, so an interrupted run can still be undone.
+ * Moves every plan item. Each move is written to the manifest as pending before the rename and
+ * confirmed after it, so a run interrupted at any point can still be undone.
  */
 export async function applyPlan(
   root: string,
@@ -69,16 +77,26 @@ export async function applyPlan(
 
   const failures: { item: PlanItem; error: string }[] = [];
   for (const item of plan) {
+    const move: Move = { from: path.relative(root, item.from), to: path.relative(root, item.to) };
+    const done = run.moves;
     try {
       const created = await ensureDir(path.dirname(item.to));
-      run = { ...run, createdDirs: [...run.createdDirs, ...created] };
+      run = {
+        ...run,
+        createdDirs: [...run.createdDirs, ...created.map((d) => path.relative(root, d))],
+        moves: [...done, { ...move, pending: true }],
+      };
+      await save();
       await moveFile(item.from, item.to);
-      const move: Move = { from: item.from, to: item.to };
-      run = { ...run, moves: [...run.moves, move] };
+      run = { ...run, moves: [...done, move] };
       await save();
       await onMove?.(item);
     } catch (err) {
       failures.push({ item, error: err instanceof Error ? err.message : String(err) });
+      if (run.moves.length > done.length && run.moves.at(-1)?.pending) {
+        run = { ...run, moves: done };
+        await save().catch(() => undefined);
+      }
     }
   }
   await save();
@@ -102,19 +120,24 @@ export async function undoLastRun(root: string): Promise<{ restored: number; ski
   let restored = 0;
   const skipped: string[] = [];
   for (const m of [...run.moves].reverse()) {
-    if (!(await exists(m.to))) {
+    const from = path.join(root, m.from);
+    const to = path.join(root, m.to);
+    const atTo = await exists(to);
+    // A pending move whose file never left its source is simply not done.
+    if (m.pending && !atTo) continue;
+    if (!atTo) {
       skipped.push(`missing (moved or deleted since): ${m.to}`);
       continue;
     }
-    if (await exists(m.from)) {
+    if (await exists(from)) {
       skipped.push(`original path is occupied: ${m.from}`);
       continue;
     }
-    await mkdir(path.dirname(m.from), { recursive: true });
-    await moveFile(m.to, m.from);
+    await mkdir(path.dirname(from), { recursive: true });
+    await moveFile(to, from);
     restored++;
   }
-  const deepestFirst = [...run.createdDirs].sort((a, b) => b.length - a.length);
+  const deepestFirst = run.createdDirs.map((d) => path.join(root, d)).sort((a, b) => b.length - a.length);
   for (const dir of deepestFirst) await removeIfEmpty(dir);
   await writeJson(manifestPath(root), { runs: runs.slice(0, -1) } satisfies Manifest);
   return { restored, skipped };

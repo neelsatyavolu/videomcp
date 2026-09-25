@@ -21,11 +21,17 @@ export function rollHintFromRel(rel: string): Roll | null {
 
 /**
  * Recursively lists video files under root, skipping hidden entries, the rejects and work
- * folders, and any absolute directory in skipDirs (topic folders created by earlier runs).
+ * folders, any absolute directory in skipDirs (topic folders created by earlier runs) and any
+ * absolute file in skipFiles (clips earlier runs already placed).
  */
-export async function scanFolder(root: string, skipDirs: readonly string[]): Promise<ScannedFile[]> {
+export async function scanFolder(
+  root: string,
+  skipDirs: readonly string[],
+  skipFiles: readonly string[] = [],
+): Promise<ScannedFile[]> {
   const base = path.resolve(root);
   const skip = new Set(skipDirs.map((d) => path.resolve(d)));
+  const skipFile = new Set(skipFiles.map((f) => path.resolve(f)));
   const found: ScannedFile[] = [];
 
   async function walk(dir: string): Promise<void> {
@@ -37,7 +43,7 @@ export async function scanFolder(root: string, skipDirs: readonly string[]): Pro
         if (dir === base && entry.name === REJECTS_DIR_NAME) continue;
         if (skip.has(full)) continue;
         await walk(full);
-      } else if (entry.isFile() && looksLikeVideoPath(full)) {
+      } else if (entry.isFile() && looksLikeVideoPath(full) && !skipFile.has(full)) {
         const rel = path.relative(base, full);
         found.push({ path: full, rel, rollHint: rollHintFromRel(rel) });
       }

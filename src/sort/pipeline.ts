@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createdDirsAll, readManifest } from "./apply.js";
+import { readManifest, sortedPaths } from "./apply.js";
 import { nearDuplicatePairs } from "./dhash.js";
 import { buildPlan } from "./plan.js";
 import { groupPrompt, judgePrompt, type ImageMode } from "./prompts.js";
@@ -104,7 +104,8 @@ async function group(deps: SortDeps, clips: readonly ClipAnalysis[], judgements:
 /** Scan → analyze → judge → group → plan. Moves nothing. */
 export async function runSort(root: string, opts: SortOptions, deps: SortDeps): Promise<SortResult> {
   const manifest = await readManifest(root);
-  const files = await scanFolder(root, createdDirsAll(manifest));
+  const alreadySorted = sortedPaths(root, manifest);
+  const files = await scanFolder(root, alreadySorted.dirs, alreadySorted.files);
   deps.log(`Found ${files.length} video${files.length === 1 ? "" : "s"} in ${root}`);
   const width = String(files.length).length;
   const unjudged: Unjudged[] = [];

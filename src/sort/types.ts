@@ -97,14 +97,18 @@ export interface PlanItem {
   readonly durationSec: number;
 }
 
+/** Paths are relative to the sort root, so the record survives the folder being moved. */
 export interface Move {
   readonly from: string;
   readonly to: string;
+  /** Written before the rename; cleared after. Still set after a crash mid-move. */
+  readonly pending?: boolean;
 }
 
 export interface ManifestRun {
   readonly at: string;
   readonly moves: readonly Move[];
+  /** Relative to the sort root, outermost first. */
   readonly createdDirs: readonly string[];
 }
 
