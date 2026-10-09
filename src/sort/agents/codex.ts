@@ -13,8 +13,20 @@ export const codex: AgentAdapter = {
     if (res.code !== 0) {
       throw new AgentError(`could not list codex MCP servers to disable them: ${res.stderr.trim().slice(-300)}`);
     }
-    const servers = JSON.parse(res.stdout) as { name: string; enabled: boolean }[];
-    return [...PLUGINS_OFF, ...servers.filter((s) => s.enabled).flatMap((s) => ["-c", `mcp_servers.${s.name}.enabled=false`])];
+    let servers: { name?: string; enabled?: boolean }[];
+    try {
+      const parsed = JSON.parse(res.stdout) as unknown;
+      if (!Array.isArray(parsed)) throw new Error("not an array");
+      servers = parsed as { name?: string; enabled?: boolean }[];
+    } catch {
+      throw new AgentError(`could not read codex MCP server list: ${res.stdout.slice(0, 300)}`);
+    }
+    return [
+      ...PLUGINS_OFF,
+      ...servers
+        .filter((s) => s?.enabled && s.name)
+        .flatMap((s) => ["-c", `mcp_servers.${s.name}.enabled=false`]),
+    ];
   },
 
   async build(req, extra) {

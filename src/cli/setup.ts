@@ -1,4 +1,4 @@
-import { access, mkdir } from "node:fs/promises";
+import { mkdir, rename, stat, unlink } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { checkDeps } from "../media/deps.js";
@@ -32,20 +32,37 @@ async function brewInstall(formula: string): Promise<boolean> {
   return code === 0;
 }
 
+/** ggml-base is ~140MB; anything smaller in the cache is a partial download. */
+const MIN_MODEL_BYTES = 1_000_000;
+
+async function usableModel(file: string): Promise<boolean> {
+  try {
+    const st = await stat(file);
+    return st.isFile() && st.size >= MIN_MODEL_BYTES;
+  } catch {
+    return false;
+  }
+}
+
 async function downloadFile(url: string, dest: string): Promise<void> {
   await mkdir(path.dirname(dest), { recursive: true });
   // curl is universal on macOS
   const curl = (await which("curl")) || "curl";
+  const tmp = `${dest}.${process.pid}.partial`;
   console.log(`→ downloading ${path.basename(dest)}`);
   const code = await run(curl, [
     "-L",
     "--fail",
     "--progress-bar",
     "-o",
-    dest,
+    tmp,
     url,
   ]);
-  if (code !== 0) throw new Error(`Download failed: ${url}`);
+  if (code !== 0) {
+    await unlink(tmp).catch(() => undefined);
+    throw new Error(`Download failed: ${url}`);
+  }
+  await rename(tmp, dest);
 }
 
 /**
@@ -57,12 +74,17 @@ export async function cmdSetup(opts: {
   skipBrew?: boolean;
 } = {}): Promise<void> {
   enrichPath();
+  const modelKey = opts.model ?? "base";
+  if (!Object.keys(WHISPER_MODEL_URLS).includes(modelKey)) {
+    throw new Error(
+      `Unknown whisper model "${modelKey}". Choose one of: ${Object.keys(WHISPER_MODEL_URLS).join(", ")}`,
+    );
+  }
   console.log(`${SERVER_NAME} v${SERVER_VERSION} — setup\n`);
   console.log("Installing needed tools: ffmpeg, tesseract, whisper-cpp + model\n");
 
-  const modelKey = opts.model ?? "base";
-  const modelUrl = WHISPER_MODEL_URLS[modelKey] ?? WHISPER_MODEL_URLS.base!;
-  const modelDest = defaultModelPath(modelKey === "base" ? "base" : modelKey);
+  const modelUrl = WHISPER_MODEL_URLS[modelKey]!;
+  const modelDest = defaultModelPath(modelKey);
 
   // 1. brew packages
   if (!opts.skipBrew) {
@@ -88,12 +110,20 @@ export async function cmdSetup(opts: {
 
   // 2. whisper model
   enrichPath(); // refresh after brew
-  let model = await resolveWhisperCppModel();
-  if (!model) {
-    try {
-      await access(modelDest);
-      model = modelDest;
-    } catch {
+  const fromEnv = process.env.WHISPER_CPP_MODEL || process.env.WHISPER_MODEL_PATH;
+  let model: string | null = null;
+  if (opts.model) {
+    // An explicit --model must be that file, not whichever model happens to be installed.
+    if (!(await usableModel(modelDest))) await downloadFile(modelUrl, modelDest);
+    model = modelDest;
+  } else {
+    model = await resolveWhisperCppModel();
+    if (model && model !== fromEnv && !(await usableModel(model))) {
+      console.error(`✗ whisper model looks incomplete (${model}); downloading again`);
+      if (model.startsWith(defaultModelDir() + path.sep)) await unlink(model).catch(() => undefined);
+      model = null;
+    }
+    if (!model) {
       await downloadFile(modelUrl, modelDest);
       model = modelDest;
     }

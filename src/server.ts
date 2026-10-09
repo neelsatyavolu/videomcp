@@ -269,7 +269,7 @@ Prefer narrow windows (e.g. 0.5–3s) with 4–16 frames.`,
       title: "Extract key frames",
       description: `Extract representative JPEG frames via scene-change detection and/or interval sampling.
 
-Modes: scene (visual cuts), interval (uniform), both (default fallback). Returns paths always; inline images for vision clients (capped).`,
+Modes: scene (visual cuts; interval samples are added when fewer than 4 cuts are found), interval (uniform), both (default). Returns paths always; inline images for vision clients (capped).`,
       inputSchema: {
         source: SourceSchema,
         detail: DetailSchema,

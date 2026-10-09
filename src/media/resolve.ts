@@ -62,7 +62,14 @@ function parseVtt(content: string): TranscriptSegment[] {
       prev.end = seg.end;
       continue;
     }
-    if (prev && seg.text.startsWith(prev.text) && seg.text.length > prev.text.length) {
+    // Rolling auto-captions extend the previous cue. Only merge when the cues
+    // actually abut — the same words later in the video are a new segment.
+    if (
+      prev &&
+      seg.start - prev.end <= 1 &&
+      seg.text.startsWith(prev.text) &&
+      seg.text.length > prev.text.length
+    ) {
       prev.end = seg.end;
       prev.text = seg.text;
       continue;
@@ -72,30 +79,64 @@ function parseVtt(content: string): TranscriptSegment[] {
   return collapsed;
 }
 
+/**
+ * Caption files that belong to `base` (the video filename without extension),
+ * best first: a manual .vtt, then other manual captions, then auto-generated.
+ * Never includes a caption for a different video that merely shares the folder.
+ */
+export function pickCaptionNames(names: readonly string[], base: string): string[] {
+  const baseLower = base.toLowerCase();
+  const ranked = names.filter((f) => {
+    const lower = f.toLowerCase();
+    const ext = lower.endsWith(".vtt") ? ".vtt" : lower.endsWith(".srt") ? ".srt" : "";
+    if (!ext) return false;
+    const stem = lower.slice(0, -ext.length);
+    return stem === baseLower || stem.startsWith(`${baseLower}.`);
+  });
+  const rank = (name: string) => {
+    const lower = name.toLowerCase();
+    const exact = lower === `${baseLower}.vtt` || lower === `${baseLower}.srt` ? 0 : 2;
+    return (lower.includes("auto") ? 4 : 0) + (lower.endsWith(".srt") ? 1 : 0) + exact;
+  };
+  return ranked.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+/** Best caption file for `base`, or null when none belong to that video. */
+export function pickCaptionName(names: readonly string[], base: string): string | null {
+  return pickCaptionNames(names, base)[0] ?? null;
+}
+
+/** Video filename from a yt-dlp download directory. Audio-only `.m4a` is not a video. */
+export function preferVideoFilename(names: readonly string[]): string | null {
+  const vids = names.filter((f) => /\.(mp4|mkv|webm|mov)$/i.test(f));
+  if (!vids.length) return null;
+  vids.sort((a, b) => {
+    const mp4 = Number(b.toLowerCase().endsWith(".mp4")) - Number(a.toLowerCase().endsWith(".mp4"));
+    return mp4 || a.localeCompare(b);
+  });
+  return vids[0] ?? null;
+}
+
 export async function loadSidecarCaptions(
   videoPath: string,
 ): Promise<{ path: string; segments: TranscriptSegment[] } | null> {
   const dir = path.dirname(videoPath);
   const base = path.basename(videoPath, path.extname(videoPath));
-  const candidates = [
-    `${base}.vtt`,
-    `${base}.srt`,
-    `${base}.en.vtt`,
-    `${base}.en.srt`,
-  ].map((f) => path.join(dir, f));
-
-  for (const c of candidates) {
+  let names: string[];
+  try {
+    names = await readdir(dir);
+  } catch {
+    return null;
+  }
+  for (const picked of pickCaptionNames(names, base)) {
+    const c = path.join(dir, picked);
     try {
-      await access(c);
       const raw = await readFile(c, "utf8");
-      let vtt = raw;
-      if (c.endsWith(".srt")) {
-        vtt = srtToVtt(raw);
-      }
+      const vtt = c.toLowerCase().endsWith(".srt") ? srtToVtt(raw) : raw;
       const segments = parseVtt(vtt);
       if (segments.length) return { path: c, segments };
     } catch {
-      // next
+      // try the next caption for this video
     }
   }
   return null;
@@ -243,13 +284,8 @@ export async function resolveSource(source: string): Promise<ResolvedMedia> {
 
 async function findDownloadedVideo(dir: string): Promise<string | null> {
   const files = await readdir(dir).catch(() => [] as string[]);
-  const vids = files.filter((f) =>
-    /\.(mp4|mkv|webm|mov|m4a)$/i.test(f),
-  );
-  if (!vids.length) return null;
-  // Prefer mp4
-  vids.sort((a, b) => Number(b.endsWith(".mp4")) - Number(a.endsWith(".mp4")));
-  return path.join(dir, vids[0]!);
+  const name = preferVideoFilename(files);
+  return name ? path.join(dir, name) : null;
 }
 
 async function findCaptionFile(dir: string): Promise<string | null> {

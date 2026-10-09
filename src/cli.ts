@@ -26,7 +26,13 @@ export async function runCli(argv: string[]): Promise<void> {
       case "setup": {
         const { cmdSetup } = await import("./cli/setup.js");
         const modelIdx = args.indexOf("--model");
-        const model = modelIdx >= 0 ? args[modelIdx + 1] : undefined;
+        let model: string | undefined;
+        if (modelIdx >= 0) {
+          model = args[modelIdx + 1];
+          if (!model || model.startsWith("-")) {
+            throw new Error("--model needs a value (base, base.en, small, or small.en)");
+          }
+        }
         await cmdSetup({ model, skipBrew: args.includes("--skip-brew") });
         break;
       }
@@ -90,5 +96,8 @@ const isDirect =
   process.argv[1] && (process.argv[1].endsWith("/cli.js") || process.argv[1].endsWith("/cli.ts"));
 
 if (isDirect) {
-  runCli(process.argv);
+  runCli(process.argv).catch((err) => {
+    console.error(`Error: ${err instanceof Error ? err.message : err}`);
+    process.exitCode = 1;
+  });
 }

@@ -3,6 +3,8 @@ import { requireFfmpeg } from "../media/deps.js";
 
 const NEAR_DUPLICATE_MAX = 10;
 
+const DHASH_TIMEOUT_MS = 30_000;
+
 /** Raw 9×8 grayscale pixels of an image, via ffmpeg. */
 function grayPixels(ffmpeg: string, image: string): Promise<Buffer | null> {
   return new Promise((resolve) => {
@@ -12,11 +14,22 @@ function grayPixels(ffmpeg: string, image: string): Promise<Buffer | null> {
       { stdio: ["ignore", "pipe", "ignore"] },
     );
     const chunks: Buffer[] = [];
+    let settled = false;
+    const finish = (buf: Buffer | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(buf);
+    };
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      finish(null);
+    }, DHASH_TIMEOUT_MS);
     child.stdout.on("data", (c: Buffer) => chunks.push(c));
-    child.on("error", () => resolve(null));
+    child.on("error", () => finish(null));
     child.on("close", (code) => {
       const buf = Buffer.concat(chunks);
-      resolve(code === 0 && buf.length === 72 ? buf : null);
+      finish(code === 0 && buf.length === 72 ? buf : null);
     });
   });
 }

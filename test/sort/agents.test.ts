@@ -40,6 +40,11 @@ describe("claude adapter", () => {
 });
 
 describe("codex adapter", () => {
+  it("rejects an unreadable MCP server list", async () => {
+    const { run } = fakeRunner(() => ok("not json\n"));
+    await expect(ADAPTERS.codex.prepare!(run, "/tmp")).rejects.toThrow(/could not read codex MCP server list/);
+  });
+
   it("disables enabled MCP servers in prepare", async () => {
     const { run } = fakeRunner(() =>
       ok(JSON.stringify([{ name: "video", enabled: true }, { name: "old", enabled: false }])),

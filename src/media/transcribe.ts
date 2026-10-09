@@ -1,7 +1,7 @@
-import { access, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { execFile, execOk, which } from "../utils/exec.js";
-import { hashKey, workSubdir } from "../utils/paths.js";
+import { cacheKeyForPath, workSubdir } from "../utils/paths.js";
 import type { TranscriptResult, TranscriptSegment } from "../types.js";
 import { requireFfmpeg } from "./deps.js";
 import { loadSidecarCaptions, parseVtt } from "./resolve.js";
@@ -12,14 +12,19 @@ import {
 
 async function extractAudioWav(videoPath: string): Promise<string> {
   const { ffmpeg } = await requireFfmpeg();
-  const dir = await workSubdir("audio", hashKey(videoPath));
+  const dir = await workSubdir("audio", await cacheKeyForPath(videoPath));
   const out = path.join(dir, "audio.wav");
+  const marker = path.join(dir, "complete");
   try {
-    await access(out);
-    return out;
+    const [wav, done] = await Promise.all([stat(out), stat(marker)]);
+    // Header-only or interrupted files are not reusable.
+    if (wav.size > 44 && done.isFile()) return out;
   } catch {
-    // continue
+    // extract below
   }
+
+  // A previous attempt may have cached a transcript for a different wav.
+  await unlink(path.join(dir, "transcript.json")).catch(() => undefined);
 
   // Mono 16kHz — optimal for Whisper speed/quality balance
   await execOk(
@@ -40,6 +45,7 @@ async function extractAudioWav(videoPath: string): Promise<string> {
     ],
     { timeoutMs: 300_000 },
   );
+  await writeFile(marker, "ok", "utf8");
   return out;
 }
 
@@ -223,6 +229,7 @@ async function transcribeOpenAI(
     method: "POST",
     headers: { Authorization: `Bearer ${key}` },
     body: form,
+    signal: AbortSignal.timeout(1_200_000),
   });
   if (!res.ok) {
     const errText = await res.text();
@@ -284,26 +291,6 @@ export async function transcribeVideo(
       }
     } catch {
       warnings.push("Caption file unreadable; falling back to ASR.");
-    }
-  }
-
-  // Also scan sibling vtts in same folder (yt-dlp)
-  if (!opts.forceWhisper) {
-    try {
-      const dir = path.dirname(videoPath);
-      const files = await readdir(dir);
-      const vtt = files.find((f) => f.endsWith(".vtt"));
-      if (vtt) {
-        const segs = parseVtt(await readFile(path.join(dir, vtt), "utf8"));
-        if (segs.length) {
-          return {
-            transcript: segmentsToResult(segs, `captions:${vtt}`, null),
-            warnings,
-          };
-        }
-      }
-    } catch {
-      // ignore
     }
   }
 

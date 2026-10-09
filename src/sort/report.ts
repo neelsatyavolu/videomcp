@@ -4,17 +4,19 @@ import type { PlanItem } from "./types.js";
 
 const cell = (s: string) => s.replace(/\s*\n\s*/g, " ").replace(/\|/g, "\\|").trim();
 
-function topicTable(root: string, items: readonly PlanItem[]): string {
-  const rows = items.map((i) =>
-    [
-      `\`${cell(path.relative(root, i.to))}\``,
+function topicTable(root: string, items: readonly PlanItem[], notMoved: ReadonlySet<string>): string {
+  const rows = items.map((i) => {
+    const failed = notMoved.has(i.from);
+    const where = failed ? `${path.relative(root, i.from)} (left in place)` : path.relative(root, i.to);
+    return [
+      `\`${cell(where)}\``,
       i.roll,
       formatDuration(i.durationSec),
-      i.verdict,
+      failed ? `${i.verdict} (not moved)` : i.verdict,
       cell(i.reasons.join("; ")),
       cell(i.summary),
-    ].join(" | "),
-  );
+    ].join(" | ");
+  });
   return ["| File | Roll | Length | Verdict | Reasons | Summary |", "|---|---|---|---|---|---|", ...rows.map((r) => `| ${r} |`)].join(
     "\n",
   );
@@ -27,6 +29,7 @@ export function renderReport(
   unjudged: readonly { rel: string; error: string }[],
   agent: string,
   generatedAt = new Date(),
+  notMoved: ReadonlySet<string> = new Set(),
 ): string {
   const keep = plan.filter((p) => p.verdict === "keep").length;
   const reject = plan.length - keep;
@@ -37,6 +40,7 @@ export function renderReport(
     `Sorted \`${root}\` with **${agent}** on ${generatedAt.toISOString().slice(0, 16).replace("T", " ")}.`,
     "",
     `**${plan.length + unjudged.length} clips** · ${keep} keep · ${reject} reject · ${unjudged.length} not judged`,
+    ...(notMoved.size ? ["", `**${notMoved.size} clip(s) were not moved** and remain at their original paths.`] : []),
     "",
     "| Topic | A-roll kept | B-roll kept | Rejected |",
     "|---|---|---|---|",
@@ -47,7 +51,7 @@ export function renderReport(
     }),
   ];
   for (const t of topics) {
-    lines.push("", `## ${t}`, "", topicTable(root, plan.filter((p) => p.topic === t)));
+    lines.push("", `## ${t}`, "", topicTable(root, plan.filter((p) => p.topic === t), notMoved));
   }
   if (unjudged.length) {
     lines.push("", "## Not judged (left in place)", "", ...unjudged.map((u) => `- \`${cell(u.rel)}\` — ${cell(u.error)}`));
