@@ -2,7 +2,7 @@
 
 **Sort a shoot folder in one command** — A-roll vs B-roll, grouped by topic, bad takes pulled into
 `_rejects` — plus a **local-first video understanding MCP** for Claude Desktop, Claude Code, Codex,
-Grok, and any MCP client. → [videomcp.n3el.dev](https://videomcp.n3el.dev)
+Grok, and any MCP client. → [videomcp.xanom.co](https://videomcp.xanom.co)
 
 ## Install (macOS)
 

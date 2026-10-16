@@ -3,7 +3,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/neelsatyavolu/videomcp/main/install.sh | bash
 cd "$HOME" || exit 1
 clear
-echo "Installing video-mcp — https://videomcp.n3el.dev"
+echo "Installing video-mcp — https://videomcp.xanom.co"
 echo
 curl -fsSL https://raw.githubusercontent.com/neelsatyavolu/videomcp/main/install.sh | bash
 status=$?

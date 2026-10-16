@@ -32,4 +32,4 @@ ls -l "$out"
 
 gh release create "$tag" "$out/video-mcp-server.tgz" "$out/Install-video-mcp.zip" \
   --title "video-mcp $version" \
-  --notes "Install: \`curl -fsSL https://raw.githubusercontent.com/neelsatyavolu/videomcp/main/install.sh | bash\` — or download **Install-video-mcp.zip**, unzip, and double-click. See https://videomcp.n3el.dev"
+  --notes "Install: \`curl -fsSL https://raw.githubusercontent.com/neelsatyavolu/videomcp/main/install.sh | bash\` — or download **Install-video-mcp.zip**, unzip, and double-click. See https://videomcp.xanom.co"
