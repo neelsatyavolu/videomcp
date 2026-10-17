@@ -1,4 +1,4 @@
-import { readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   DEFAULT_SCENE_THRESHOLD,
@@ -11,7 +11,7 @@ import {
   maxFramesForDetail,
 } from "../constants.js";
 import { execOk } from "../utils/exec.js";
-import { hashKey, workSubdir } from "../utils/paths.js";
+import { artifactIsFresh, cacheKeyForPath, workSubdir } from "../utils/paths.js";
 import type { FrameResult } from "../types.js";
 import { requireFfmpeg } from "./deps.js";
 
@@ -49,6 +49,22 @@ async function readTimesSidecar(dir: string): Promise<number[] | null> {
   } catch {
     return null;
   }
+}
+
+/** A finished extraction. Missing `done` means a previous ffmpeg run was interrupted. */
+async function readDoneCache(dir: string): Promise<{ files: string[]; times: number[] } | null> {
+  try {
+    await stat(path.join(dir, "done"));
+  } catch {
+    return null;
+  }
+  const files = await listFrames(dir);
+  const times = (await readTimesSidecar(dir)) ?? [];
+  return { files, times };
+}
+
+async function markDone(dir: string): Promise<void> {
+  await writeFile(path.join(dir, "done"), "ok", "utf8");
 }
 
 function parseShowinfoTimes(stderr: string, startOffset = 0): number[] {
@@ -140,11 +156,16 @@ export async function extractFrameAt(
   timeSec: number,
 ): Promise<FrameResult> {
   const { ffmpeg } = await requireFfmpeg();
-  const dir = await workSubdir("frames", hashKey(videoPath), "single");
+  const dir = await workSubdir("frames", await cacheKeyForPath(videoPath, "single"));
   const out = path.join(dir, `at_${timeSec.toFixed(3).replace(".", "_")}.jpg`);
+  let reuse = false;
   try {
-    await stat(out);
+    reuse = (await stat(out)).size > 0;
   } catch {
+    reuse = false;
+  }
+  if (!reuse) {
+    await unlink(out).catch(() => undefined);
     await execOk(
       ffmpeg,
       [
@@ -188,7 +209,7 @@ export async function extractFrameBurst(
   const n = Math.max(2, Math.min(count, 30));
   const dir = await workSubdir(
     "frames",
-    hashKey(`${videoPath}:${startSec}:${endSec}:${n}:v3`),
+    await cacheKeyForPath(videoPath, `burst:${startSec}:${endSec}:${n}:v3`),
     "burst",
   );
 
@@ -224,16 +245,16 @@ export async function extractFrames(
 
   const mode = opts.mode ?? "both";
   const threshold = opts.sceneThreshold ?? DEFAULT_SCENE_THRESHOLD;
-  const key = hashKey(
+  const key = await cacheKeyForPath(
+    videoPath,
     JSON.stringify({
-      videoPath,
       mode,
       maxFrames,
       threshold,
       start: opts.startSec,
       end: opts.endSec,
       detail,
-      v: 3, // bust cache after timestamp/size fixes
+      v: 4,
     }),
   );
   const dir = await workSubdir("frames", key);
@@ -247,10 +268,10 @@ export async function extractFrames(
     const sceneDir = path.join(dir, "scene");
     await workSubdir("frames", key, "scene");
     try {
-      let files = await listFrames(sceneDir);
-      let times = (await readTimesSidecar(sceneDir)) ?? [];
-      if (files.length === 0) {
-        const extracted = await extractWithScene(
+      let cached = await readDoneCache(sceneDir);
+      if (!cached) {
+        await unlink(path.join(sceneDir, "done")).catch(() => undefined);
+        cached = await extractWithScene(
           ffmpeg,
           videoPath,
           sceneDir,
@@ -258,9 +279,10 @@ export async function extractFrames(
           opts.startSec,
           opts.endSec,
         );
-        files = extracted.files;
-        times = extracted.times;
+        await markDone(sceneDir);
       }
+      const files = cached.files;
+      const times = cached.times;
       for (let i = 0; i < files.length; i++) {
         pairs.push({
           path: files[i]!,
@@ -281,10 +303,10 @@ export async function extractFrames(
     const fps = fpsForDetail(detail, durationSec, maxFrames);
     const intervalDir = path.join(dir, "interval");
     await workSubdir("frames", key, "interval");
-    let files = await listFrames(intervalDir);
-    let times = (await readTimesSidecar(intervalDir)) ?? [];
-    if (files.length < Math.min(maxFrames, 3)) {
-      const extracted = await extractInterval(
+    let cached = await readDoneCache(intervalDir);
+    if (!cached) {
+      await unlink(path.join(intervalDir, "done")).catch(() => undefined);
+      cached = await extractInterval(
         ffmpeg,
         videoPath,
         intervalDir,
@@ -293,9 +315,10 @@ export async function extractFrames(
         opts.endSec,
         maxFrames,
       );
-      files = extracted.files;
-      times = extracted.times;
+      await markDone(intervalDir);
     }
+    const files = cached.files;
+    const times = cached.times;
     for (let i = 0; i < files.length; i++) {
       pairs.push({
         path: files[i]!,
@@ -378,13 +401,8 @@ export async function readInlineFrameBase64(framePath: string): Promise<string> 
   const base = path.basename(framePath, path.extname(framePath));
   const thumb = path.join(dir, `${base}_inline.jpg`);
 
-  try {
-    const st = await stat(thumb);
-    if (st.size > 200) {
-      return (await readFile(thumb)).toString("base64");
-    }
-  } catch {
-    // create
+  if (await artifactIsFresh(framePath, thumb, 200)) {
+    return (await readFile(thumb)).toString("base64");
   }
 
   await execOk(

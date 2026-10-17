@@ -1,6 +1,6 @@
-import { constants, copyFile, mkdir, readdir, rename, rmdir, stat, unlink } from "node:fs/promises";
+import { constants, copyFile, mkdir, readFile, readdir, rename, rmdir, stat, unlink } from "node:fs/promises";
 import path from "node:path";
-import { exists, readJson, writeJson } from "./fsutil.js";
+import { exists, writeJson } from "./fsutil.js";
 import { WORK_DIR_NAME } from "./scan.js";
 import type { Manifest, ManifestRun, Move, PlanItem } from "./types.js";
 
@@ -8,9 +8,39 @@ export function manifestPath(root: string): string {
   return path.join(root, WORK_DIR_NAME, "manifest.json");
 }
 
+/**
+ * Absolute path for a manifest-relative entry, or null when it escapes `root`.
+ * `path.join(root, "../outside")` would otherwise leave the shoot folder.
+ */
+export function resolveWithin(root: string, rel: string): string | null {
+  const base = path.resolve(root);
+  const resolved = path.resolve(base, rel);
+  const prefix = base.endsWith(path.sep) ? base : base + path.sep;
+  if (resolved !== base && !resolved.startsWith(prefix)) return null;
+  return resolved;
+}
+
 export async function readManifest(root: string): Promise<Manifest> {
-  const m = await readJson<Manifest>(manifestPath(root));
-  return m && Array.isArray(m.runs) ? m : { runs: [] };
+  const file = manifestPath(root);
+  let raw: string;
+  try {
+    raw = await readFile(file, "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return { runs: [] };
+    throw err;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      `Footage manifest is corrupt (${file}). Repair or remove it before sorting or undoing; that file is the undo history.`,
+    );
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || !Array.isArray((parsed as Manifest).runs)) {
+    throw new Error(`Footage manifest is invalid (${file}). Expected an object with a runs array.`);
+  }
+  return parsed as Manifest;
 }
 
 /** Every folder any recorded run created, relative to the root. */
@@ -77,7 +107,13 @@ export async function applyPlan(
 
   const failures: { item: PlanItem; error: string }[] = [];
   for (const item of plan) {
-    const move: Move = { from: path.relative(root, item.from), to: path.relative(root, item.to) };
+    const fromRel = path.relative(root, item.from);
+    const toRel = path.relative(root, item.to);
+    if (!resolveWithin(root, fromRel) || !resolveWithin(root, toRel)) {
+      failures.push({ item, error: "refusing to move a file outside the shoot folder" });
+      continue;
+    }
+    const move: Move = { from: fromRel, to: toRel };
     const done = run.moves;
     try {
       const created = await ensureDir(path.dirname(item.to));
@@ -98,6 +134,12 @@ export async function applyPlan(
         await save().catch(() => undefined);
       }
     }
+  }
+  // A run that moved nothing and created nothing would sit on top of real history,
+  // so the next --undo would restore zero files and hide the previous run.
+  if (run.moves.length === 0 && run.createdDirs.length === 0) {
+    await writeJson(manifestPath(root), { runs: prior } satisfies Manifest);
+    return { run, failures };
   }
   await save();
   return { run, failures };
@@ -120,8 +162,12 @@ export async function undoLastRun(root: string): Promise<{ restored: number; ski
   let restored = 0;
   const skipped: string[] = [];
   for (const m of [...run.moves].reverse()) {
-    const from = path.join(root, m.from);
-    const to = path.join(root, m.to);
+    const from = resolveWithin(root, m.from);
+    const to = resolveWithin(root, m.to);
+    if (!from || !to) {
+      skipped.push(`refusing path outside the shoot folder: ${m.from} → ${m.to}`);
+      continue;
+    }
     const atTo = await exists(to);
     // A pending move whose file never left its source is simply not done.
     if (m.pending && !atTo) continue;
@@ -137,7 +183,17 @@ export async function undoLastRun(root: string): Promise<{ restored: number; ski
     await moveFile(to, from);
     restored++;
   }
-  const deepestFirst = run.createdDirs.map((d) => path.join(root, d)).sort((a, b) => b.length - a.length);
+  const deepestFirst: string[] = [];
+  for (const d of run.createdDirs) {
+    const dir = resolveWithin(root, d);
+    if (!dir) {
+      skipped.push(`refusing folder outside the shoot folder: ${d}`);
+      continue;
+    }
+    if (dir === path.resolve(root)) continue;
+    deepestFirst.push(dir);
+  }
+  deepestFirst.sort((a, b) => b.length - a.length);
   for (const dir of deepestFirst) await removeIfEmpty(dir);
   await writeJson(manifestPath(root), { runs: runs.slice(0, -1) } satisfies Manifest);
   return { restored, skipped };

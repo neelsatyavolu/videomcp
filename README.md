@@ -111,8 +111,9 @@ shoot/
 ```
 
 A-roll is a clip with speech over at least 40% of its length; a folder named `a-roll` or
-`b-roll` overrides that. Very short, mostly black or frozen clips are rejected without asking
-the agent. Re-running only sorts clips added since. Options: `--model`, `--yes`,
+`b-roll` overrides that. Very short or mostly black clips are rejected without asking
+the agent. A static shot is flagged for the agent rather than rejected as frozen.
+Re-running only sorts clips added since. Options: `--model`, `--yes`,
 `--concurrency N` (default 3), `--no-cache`. `--undo` reverts the most recent run; repeat it to
 go further back. Speech-to-text runs locally with whisper.cpp; only if no local backend works and
 `OPENAI_API_KEY` is set is audio sent to OpenAI's Whisper API.

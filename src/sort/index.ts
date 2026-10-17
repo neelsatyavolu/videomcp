@@ -7,6 +7,7 @@ import { killRunning, runProcess } from "./agents/run.js";
 import { analyzeClip, loadJudgement, saveJudgement } from "./analyze.js";
 import { applyPlan, undoLastRun } from "./apply.js";
 import { runSort } from "./pipeline.js";
+import { renderReport } from "./report.js";
 import { WORK_DIR_NAME } from "./scan.js";
 import type { AgentName, PlanItem } from "./types.js";
 
@@ -97,9 +98,19 @@ export async function cmdSort(argv: readonly string[]): Promise<number> {
   let args: SortArgs;
   try {
     args = parseSortArgs(argv);
-    if (!(await stat(args.dir)).isDirectory()) throw new Error(`Not a folder: ${args.dir}`);
   } catch (err) {
-    console.error(err instanceof Error && "code" in err ? `Folder not found: ${argv.find((a) => !a.startsWith("-"))}` : (err as Error).message);
+    console.error(err instanceof Error ? err.message : String(err));
+    return 1;
+  }
+  try {
+    if (!(await stat(args.dir)).isDirectory()) {
+      console.error(`Not a folder: ${args.dir}`);
+      return 1;
+    }
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") console.error(`Folder not found: ${args.dir}`);
+    else console.error(err instanceof Error ? err.message : String(err));
     return 1;
   }
   if (args.undo) return undo(args.dir);
@@ -157,7 +168,11 @@ export async function cmdSort(argv: readonly string[]): Promise<number> {
   }
 
   const { run, failures } = await applyPlan(args.dir, result.plan);
-  await writeFile(path.join(args.dir, REPORT_NAME), result.report);
+  const notMoved = new Set(failures.map((f) => f.item.from));
+  const report = notMoved.size
+    ? renderReport(args.dir, result.plan, result.unjudged, agentKey, new Date(), notMoved)
+    : result.report;
+  await writeFile(path.join(args.dir, REPORT_NAME), report);
   console.log(`Moved ${run.moves.length} file(s). Report: ${path.join(args.dir, REPORT_NAME)}`);
   for (const f of failures) console.error(`  not moved: ${path.relative(args.dir, f.item.from)} — ${f.error}`);
   console.log(`Undo with: video-mcp sort --undo "${args.dir}"`);

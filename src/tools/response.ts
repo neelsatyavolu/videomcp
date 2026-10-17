@@ -62,8 +62,8 @@ export async function buildFrameContent(
       const f = frames[i]!;
       try {
         const data = await readInlineFrameBase64(f.path);
-        if (data.length > budget && inlined > 0) break;
-        if (data.length > 900_000) continue;
+        // A single oversized thumb would blow the host's tool-result limit.
+        if (data.length > 900_000 || data.length > budget) continue;
         content.push({ type: "image", data, mimeType: "image/jpeg" });
         // Caption so agents know which timestamp they are looking at
         content.push({

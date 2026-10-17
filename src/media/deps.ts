@@ -60,7 +60,7 @@ export async function checkDeps(): Promise<DepStatus[]> {
       available: Boolean(whisperCppPath),
       path: whisperCppPath ?? undefined,
       note: whisperCppPath
-        ? "NEEDED — local ASR (whisper-cli)"
+        ? "Local speech-to-text (whisper-cli)"
         : "NEEDED. Run: video-mcp setup   or: brew install whisper-cpp",
     },
     {
@@ -68,7 +68,7 @@ export async function checkDeps(): Promise<DepStatus[]> {
       available: Boolean(whisperModel),
       path: whisperModel ?? undefined,
       note: whisperModel
-        ? "NEEDED — ggml model for whisper.cpp"
+        ? "ggml model for whisper.cpp"
         : "NEEDED. Run: video-mcp setup   (downloads ggml-base.bin)",
     },
     {
@@ -92,7 +92,7 @@ export async function checkDeps(): Promise<DepStatus[]> {
       path: tesseract || undefined,
       version: tesseract ? await versionOf(tesseract, ["--version"]) : undefined,
       note: tesseract
-        ? "NEEDED — OCR for on-screen text"
+        ? "OCR for on-screen text"
         : "NEEDED. Run: video-mcp setup   or: brew install tesseract",
     },
     {

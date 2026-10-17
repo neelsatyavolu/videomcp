@@ -1,6 +1,13 @@
 import os from "node:os";
 import path from "node:path";
 
+/** Finite env override, otherwise `fallback`. Blank and non-numeric values keep the default. */
+export function numberFromEnv(raw: string | undefined, fallback: number): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export const SERVER_NAME = "video-mcp-server";
 export const SERVER_VERSION = "1.3.0";
 
@@ -8,33 +15,34 @@ export const SERVER_VERSION = "1.3.0";
 export const CHARACTER_LIMIT = 80_000;
 
 /** Max frames returned as base64 image blocks (vision clients). Paths always included. */
-export const MAX_INLINE_IMAGES = Number(process.env.VIDEO_MCP_MAX_INLINE_IMAGES ?? 6);
+export const MAX_INLINE_IMAGES = numberFromEnv(process.env.VIDEO_MCP_MAX_INLINE_IMAGES, 6);
 
 /**
  * Hard budget for total base64 payload (chars). Grok/hosts often truncate ~20–40KB text;
  * keep images small so vision still works without blowing the tool result.
  */
-export const MAX_INLINE_BASE64_CHARS = Number(
-  process.env.VIDEO_MCP_MAX_INLINE_BASE64 ?? 180_000,
+export const MAX_INLINE_BASE64_CHARS = numberFromEnv(
+  process.env.VIDEO_MCP_MAX_INLINE_BASE64,
+  180_000,
 );
 
 /** Max JPEG edge length for extracted frames on disk. */
-export const FRAME_MAX_EDGE = Number(process.env.VIDEO_MCP_FRAME_EDGE ?? 640);
+export const FRAME_MAX_EDGE = numberFromEnv(process.env.VIDEO_MCP_FRAME_EDGE, 640);
 
 /** Max edge for *inline* thumbs (smaller → less MCP truncation). */
-export const INLINE_MAX_EDGE = Number(process.env.VIDEO_MCP_INLINE_EDGE ?? 480);
+export const INLINE_MAX_EDGE = numberFromEnv(process.env.VIDEO_MCP_INLINE_EDGE, 480);
 
 /** JPEG quality 2–31 (ffmpeg -q:v; lower is higher quality). */
-export const FRAME_QV = Number(process.env.VIDEO_MCP_FRAME_QV ?? 5);
+export const FRAME_QV = numberFromEnv(process.env.VIDEO_MCP_FRAME_QV, 5);
 
 /** Inline thumb quality (more compressed). */
-export const INLINE_QV = Number(process.env.VIDEO_MCP_INLINE_QV ?? 8);
+export const INLINE_QV = numberFromEnv(process.env.VIDEO_MCP_INLINE_QV, 8);
 
 /** Scene-change threshold for ffmpeg select filter. */
-export const DEFAULT_SCENE_THRESHOLD = Number(process.env.VIDEO_MCP_SCENE_THRESHOLD ?? 0.28);
+export const DEFAULT_SCENE_THRESHOLD = numberFromEnv(process.env.VIDEO_MCP_SCENE_THRESHOLD, 0.28);
 
 /** In-memory analysis cache TTL. */
-export const CACHE_TTL_MS = Number(process.env.VIDEO_MCP_CACHE_TTL_MS ?? 15 * 60 * 1000);
+export const CACHE_TTL_MS = numberFromEnv(process.env.VIDEO_MCP_CACHE_TTL_MS, 15 * 60 * 1000);
 
 /** Working directory for downloads, frames, audio. */
 export const WORK_DIR =

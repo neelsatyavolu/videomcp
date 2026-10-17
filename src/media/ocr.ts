@@ -1,6 +1,6 @@
 import path from "node:path";
-import { access } from "node:fs/promises";
 import { execFile, execOk, which } from "../utils/exec.js";
+import { artifactIsFresh } from "../utils/paths.js";
 import type { FrameResult } from "../types.js";
 import { requireFfmpeg } from "./deps.js";
 
@@ -29,12 +29,7 @@ async function preprocessForOcr(imagePath: string): Promise<string> {
     path.dirname(imagePath),
     `${path.basename(imagePath, path.extname(imagePath))}_ocrprep.png`,
   );
-  try {
-    await access(out);
-    return out;
-  } catch {
-    // create
-  }
+  if (await artifactIsFresh(imagePath, out)) return out;
   await execOk(
     ffmpeg,
     [

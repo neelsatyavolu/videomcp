@@ -53,7 +53,9 @@ export async function resolveLocalPath(source: string): Promise<string> {
     if (!st.isFile()) throw new Error(`Not a file: ${resolved}`);
   } catch (err) {
     if (err instanceof Error && err.message.startsWith("Not a file")) throw err;
-    throw new Error(`Video file not found: ${resolved}`);
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") throw new Error(`Video file not found: ${resolved}`);
+    throw err;
   }
   return resolved;
 }
@@ -65,4 +67,20 @@ export function looksLikeVideoPath(p: string): boolean {
 
 export function cacheKeyForFile(filePath: string, mtimeMs: number, size: number, extra = ""): string {
   return hashKey(`${filePath}|${mtimeMs}|${size}|${extra}`);
+}
+
+/** Disk-cache key that changes when the file is replaced, even at the same path. */
+export async function cacheKeyForPath(filePath: string, extra = ""): Promise<string> {
+  const st = await stat(filePath);
+  return cacheKeyForFile(filePath, st.mtimeMs, st.size, extra);
+}
+
+/** True when `artifact` exists, is large enough, and is at least as new as `source`. */
+export async function artifactIsFresh(source: string, artifact: string, minBytes = 1): Promise<boolean> {
+  try {
+    const [src, out] = await Promise.all([stat(source), stat(artifact)]);
+    return out.isFile() && out.size >= minBytes && out.mtimeMs >= src.mtimeMs;
+  } catch {
+    return false;
+  }
 }

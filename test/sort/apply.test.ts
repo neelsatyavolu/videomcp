@@ -169,7 +169,47 @@ describe("applyPlan / undoLastRun", () => {
     await touch(root, ["T/a.mp4"]);
     const { failures } = await applyPlan(root, [item(root, "missing.mp4", "T/missing.mp4")]);
     expect(failures).toHaveLength(1);
-    expect((await readManifest(root)).runs.at(-1)!.moves).toEqual([]);
+    expect((await readManifest(root)).runs).toEqual([]);
+  });
+
+  it("keeps a failed run that created folders so undo can remove them", async () => {
+    const root = await tempDir();
+    await touch(root, ["keep.txt"]);
+    const { failures } = await applyPlan(root, [item(root, "missing.mp4", "NewTopic/a-roll/missing.mp4")]);
+    expect(failures).toHaveLength(1);
+    const run = (await readManifest(root)).runs.at(-1)!;
+    expect(run.moves).toEqual([]);
+    expect(run.createdDirs).toEqual(expect.arrayContaining(["NewTopic", "NewTopic/a-roll"]));
+    await undoLastRun(root);
+    expect(await dirs(root)).toEqual([]);
+  });
+
+  it("refuses a corrupt manifest instead of forgetting undo history", async () => {
+    const root = await tempDir();
+    await mkdir(path.join(root, ".footage-sort"), { recursive: true });
+    await writeFile(path.join(root, ".footage-sort/manifest.json"), "{ not json");
+    await expect(readManifest(root)).rejects.toThrow(/corrupt/i);
+  });
+
+  it("does not move or delete files outside the shoot folder", async () => {
+    const parent = await tempDir();
+    const root = path.join(parent, "shoot");
+    await touch(root, ["a.mp4"]);
+    await writeFile(path.join(parent, "secret.txt"), "secret");
+    await mkdir(path.join(parent, "empty-dir"));
+    await mkdir(path.join(root, ".footage-sort"), { recursive: true });
+    await writeFile(path.join(root, ".footage-sort/manifest.json"), JSON.stringify({
+      runs: [{
+        at: "2026-09-24T00:00:00Z",
+        moves: [{ from: "stolen.txt", to: "../secret.txt" }],
+        createdDirs: ["../empty-dir"],
+      }],
+    }));
+    const res = await undoLastRun(root);
+    expect(res.restored).toBe(0);
+    expect(res.skipped.join("\n")).toMatch(/outside the shoot folder/);
+    expect(await readFile(path.join(parent, "secret.txt"), "utf8")).toBe("secret");
+    expect(await dirs(parent)).toEqual(expect.arrayContaining(["empty-dir", "shoot"]));
   });
 
   it("removes created folders that only hold Finder's .DS_Store", async () => {

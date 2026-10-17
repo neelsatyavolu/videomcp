@@ -56,7 +56,12 @@ export async function probeVideo(
     { timeoutMs: 60_000 },
   );
 
-  const data = JSON.parse(stdout) as FfprobeJson;
+  let data: FfprobeJson;
+  try {
+    data = JSON.parse(stdout) as FfprobeJson;
+  } catch {
+    throw new Error(`ffprobe returned invalid JSON for ${filePath}`);
+  }
   const streams = data.streams ?? [];
   const v = streams.find((s) => s.codec_type === "video");
   const a = streams.find((s) => s.codec_type === "audio");

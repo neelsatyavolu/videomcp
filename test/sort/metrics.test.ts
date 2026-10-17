@@ -37,7 +37,7 @@ describe("parseMetadataFile", () => {
 
 describe("parseDeshakeLog", () => {
   it("returns RMS of the final x/y correction divided by width", () => {
-    expect(parseDeshakeLog(fixture("deshake.log"), 640)).toBeCloseTo(0.020986, 5);
+    expect(parseDeshakeLog(fixture("deshake.txt"), 640)).toBeCloseTo(0.020986, 5);
   });
 
   it("returns null without data rows", () => {

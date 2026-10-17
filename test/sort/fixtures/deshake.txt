@@ -1,0 +1,2 @@
+Ori x, Avg x, Fin x, Ori y, Avg y, Fin y
+0, 0, 6.77, 0, 0, 11.6

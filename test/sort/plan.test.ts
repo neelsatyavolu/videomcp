@@ -148,4 +148,14 @@ describe("renderReport", () => {
     expect(md).toContain("c.mp4");
     expect(md).toContain("grok timed out");
   });
+
+  it("marks clips that were planned but not moved", () => {
+    const clips = [clip("c1", "a.mp4", "a-roll")];
+    const plan = buildPlan(root, clips, new Map([["c1", keep()]]), grouping([{ title: "Intro", clips: ["c1"] }]), () => false);
+    const md = renderReport(root, plan, [], "grok", new Date("2026-01-01T00:00:00Z"), new Set(plan.map((p) => p.from)));
+    expect(md).toContain("were not moved");
+    expect(md).toContain("a.mp4 (left in place)");
+    expect(md).toContain("keep (not moved)");
+    expect(md).not.toContain("Intro/a-roll/a.mp4");
+  });
 });
