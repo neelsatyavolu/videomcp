@@ -182,6 +182,7 @@ tool_timeout_sec = 600
 ```bash
 npm install && npm run build
 npm start                 # MCP stdio
+npm test                  # Vitest
 npm run smoke -- /path/to/video.mp4
 ```
 
